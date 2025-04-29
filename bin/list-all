@@ -1,3 +1,10 @@
 #!/usr/bin/env bash
-version=$(curl -s https://downloads.mariadb.org/mariadb/+releases/ | awk -F'/' '/href="\/mariadb\// {print $3}' | sort -n)
-echo $version
+
+# Fetch the list of major releases via the MariaDB REST API
+response=$(curl -s https://downloads.mariadb.org/rest-api/mariadb/)
+
+# Extract the release versions from the JSON response
+versions=$(echo "$response" | jq -r '.major_releases[].release_id' | sort -n)
+
+# Output the versions
+echo "$versions"
