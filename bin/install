@@ -4,23 +4,33 @@ install_me() {
   local install_type=$1
   local version=$2
   local install_path=$3
-  channel=stable
-  echo "$version" |grep "dev" > /dev/null
-  if [ $? -eq 0 ];then
-	channel=dev
+
+  # Define API parameters
+  product_id="mariadb"
+  release_id=$(echo "$version" | cut -d. -f1,2) # Extract major.minor version
+  api_url="https://downloads.mariadb.org/rest-api/${product_id}/${release_id}/"
+
+  # Fetch file details from API
+  response=$(curl -s "${api_url}")
+  download_url=$(echo "$response" | jq -r ".releases.\"${version}\".files[] | select(.file_name | test(\"linux-x86_64\")) | .file_download_url")
+
+  if [[ -z "$download_url" ]]; then
+    echo "Error: Unable to find download URL for version $version"
+    exit 1
   fi
-  source_path=https://downloads.mariadb.org/f/mariadb-${version}/bintar-linux-x86_64/mariadb-${version}-linux-x86_64.tar.gz?serve
-  tmpd=$(mktemp -d); cd $tmpd; 
-  echo "curl -sL $source_path -o ${version}.tar.gz"
-  curl -L $source_path -o ${version}.tar.gz
+
+  # Proceed with the rest of the installation
+  tmpd=$(mktemp -d); cd $tmpd
+  echo "curl -L $download_url -o ${version}.tar.gz"
+  curl -L "$download_url" -o "${version}.tar.gz"
   echo "cd $install_path"
-  cd $install_path
+  cd "$install_path"
   echo "tar -xzf ${version}.tar.gz"
-  tar -xvf $tmpd/${version}.tar.gz
+  tar -xzf "$tmpd/${version}.tar.gz"
   mv mariadb-${version}-linux-x86_64/* .
   rmdir mariadb-${version}-linux-x86_64
-  mkdir -p $install_path/.archives
-  rm -rf $tmpd
+  mkdir -p "$install_path/.archives"
+  rm -rf "$tmpd"
 }
 
-install_me $ASDF_INSTALL_TYPE $ASDF_INSTALL_VERSION $ASDF_INSTALL_PATH
+install_me "$ASDF_INSTALL_TYPE" "$ASDF_INSTALL_VERSION" "$ASDF_INSTALL_PATH"
